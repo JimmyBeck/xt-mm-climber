@@ -179,6 +179,9 @@ export default defineContentScript({
         emitLog('RPC_REQ', `发起 API 请求: [${method}] ${url}`, { data });
 
         try {
+          const targetUrl = url.startsWith('/api/') ? 'https://edith.xiaohongshu.com' + url : url;
+          const signPath = targetUrl.replace(/^https?:\/\/[^\/]+/, '');
+
           const headers: Record<string, string> = {
             ...lastSignatureHeaders,
           };
@@ -190,7 +193,7 @@ export default defineContentScript({
           // 尝试调用小红书原生签名函数 _webmsxyw
           if (typeof (window as any)._webmsxyw === 'function') {
             try {
-              const signObj = (window as any)._webmsxyw(url, data);
+              const signObj = (window as any)._webmsxyw(signPath, data);
               if (signObj && typeof signObj === 'object') {
                 if (signObj['X-s'] || signObj['x-s']) headers['x-s'] = signObj['X-s'] || signObj['x-s'];
                 if (signObj['X-t'] || signObj['x-t']) headers['x-t'] = String(signObj['X-t'] || signObj['x-t']);
@@ -210,7 +213,7 @@ export default defineContentScript({
             fetchOptions.body = JSON.stringify(data);
           }
 
-          const res = await window.fetch(url, fetchOptions);
+          const res = await window.fetch(targetUrl, fetchOptions);
           const status = res.status;
           let responseJson: any = null;
           try {

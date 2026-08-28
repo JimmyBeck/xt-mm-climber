@@ -754,11 +754,13 @@ async function startSingleNoteDeepCrawl(noteId: string, xsecToken = '') {
   appendLog(`🎯 开始对笔记 [${noteId.slice(-6)}] 执行全深度采集 (正文+素材+全部展开评论)...`);
 
   try {
+    const cached = notesMap.value.get(noteId);
     const { note, comments: list, report } = await crawlSingleNoteDeep(
       noteId,
       xsecToken,
       (text) => appendLog(text),
-      () => isStopRequested.value
+      () => isStopRequested.value,
+      cached
     );
 
     if (note) {

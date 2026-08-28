@@ -152,19 +152,26 @@ export async function crawlSingleNoteDeep(
   noteId: string,
   xsecToken: string,
   onLog: (logText: string) => void,
-  shouldStop?: () => boolean
+  shouldStop?: () => boolean,
+  cachedNote?: XhsNote | null
 ): Promise<{ note: XhsNote | null; comments: XhsComment[]; report: NoteCrawlItemReport }> {
   onLog(`🎯 开始对笔记 [${noteId.slice(-6)}] 发起全深度采集...`);
   recordLog('INFO', `开始单篇深度采集: noteId=${noteId}`);
 
-  let note: XhsNote | null = null;
+  let note: XhsNote | null = cachedNote || null;
+
+  if (note) {
+    onLog(`✓ [缓存速提] 已获取笔记详情: 《${note.title.slice(0, 15) || note.id}》`);
+  }
 
   // 1. 优先尝试从当前页面 State 极速读取
-  const pageDirect = await fetchPageStateDirect(noteId);
-  if (pageDirect.note) {
-    note = parseRawNote(pageDirect.note);
-    if (note) {
-      onLog(`✓ [内存秒提] 成功提取笔记正文与素材: 《${note.title.slice(0, 15) || note.id}》`);
+  if (!note) {
+    const pageDirect = await fetchPageStateDirect(noteId);
+    if (pageDirect.note) {
+      note = parseRawNote(pageDirect.note);
+      if (note) {
+        onLog(`✓ [内存秒提] 成功提取笔记正文与素材: 《${note.title.slice(0, 15) || note.id}》`);
+      }
     }
   }
 
