@@ -1,9 +1,10 @@
 import type { XhsNote, XhsComment, CrawlProgress, NoteCrawlItemReport, CrawlTaskSummaryReport } from '../types';
 import { parseRawNote, parseNotesPayload, parseCommentsPayload, parseSubCommentsPayload } from './parser';
 import { sleepSafe, classifyXhsError } from './scheduler';
+import { recordLog } from './logger';
 
 /**
- * 封装与 Injected Main World 通信的 RPC 请求器（带 12s 看门狗超时保护）
+ * 封装与 Injected Main World 通信的 RPC 请求器（带 12s 看门狗超时保护与诊断记录）
  */
 export function callXhsApi(
   url: string,
@@ -15,12 +16,15 @@ export function callXhsApi(
     const reqId = 'req_' + Math.random().toString(36).slice(2, 9) + '_' + Date.now();
     let hasResolved = false;
 
+    recordLog('RPC_REQ', `[RPC 发起] ${method} ${url}`, { reqId, data });
+
     const handler = (event: MessageEvent) => {
       const msg = event.data;
       if (msg && msg.type === 'XHS_API_RESPONSE' && msg.reqId === reqId) {
         if (!hasResolved) {
           hasResolved = true;
           window.removeEventListener('message', handler);
+          recordLog('RPC_RES', `[RPC 响应] HTTP ${msg.status} (${url.slice(0, 35)}...)`, msg);
           resolve({
             success: msg.success,
             status: msg.status,
@@ -44,11 +48,12 @@ export function callXhsApi(
       '*'
     );
 
-    // 12秒看门狗超时保护：超时自动切断并返回，绝不死锁
+    // 12秒看门狗超时保护
     setTimeout(() => {
       if (!hasResolved) {
         hasResolved = true;
         window.removeEventListener('message', handler);
+        recordLog('WARN', `[RPC 超时] 请求超过 ${timeoutMs}ms 未响应: ${url}`);
         resolve({ success: false, status: 408, error: '小红书接口响应超时(>12s)', isTimeout: true });
       }
     }, timeoutMs);
@@ -56,8 +61,92 @@ export function callXhsApi(
 }
 
 /**
- * 核心场景 3：单篇笔记全深度采集 (Single Note Deep Crawl)
- * 100% 获取：完整全文正文 + 物理精确时间戳 + 无水印素材 + 全量一级与折叠子回复
+ * 尝试从当前页面 State 中直接同步读取已加载的笔记与评论
+ */
+export function fetchPageStateDirect(targetNoteId?: string): Promise<{ note: any; comments: any[] }> {
+  return new Promise((resolve) => {
+    const reqId = 'state_' + Math.random().toString(36).slice(2, 9);
+    let hasResolved = false;
+
+    const handler = (event: MessageEvent) => {
+      const msg = event.data;
+      if (msg && msg.type === 'XHS_GET_PAGE_STATE_RESPONSE' && msg.reqId === reqId) {
+        if (!hasResolved) {
+          hasResolved = true;
+          window.removeEventListener('message', handler);
+          resolve(msg.data || { note: null, comments: [] });
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+    window.postMessage({ type: 'XHS_GET_PAGE_STATE', reqId, targetNoteId }, '*');
+
+    setTimeout(() => {
+      if (!hasResolved) {
+        hasResolved = true;
+        window.removeEventListener('message', handler);
+        resolve({ note: null, comments: [] });
+      }
+    }, 1500);
+  });
+}
+
+/**
+ * DOM 兜底解析器：当页面已打开笔记弹窗时，直接从 DOM 提取 100% 正文与素材
+ */
+function extractNoteFromDOM(noteId: string, xsecToken = ''): XhsNote | null {
+  try {
+    const titleEl = document.querySelector('#detail-title') || document.querySelector('.title');
+    const descEl = document.querySelector('#detail-desc') || document.querySelector('.desc');
+    const userEl = document.querySelector('.author-container .name') || document.querySelector('.user-info .name');
+    const avatarEl = document.querySelector('.author-container img') as HTMLImageElement;
+
+    const title = titleEl?.textContent?.trim() || '';
+    const desc = descEl?.textContent?.trim() || '';
+    if (!title && !desc) return null;
+
+    const images: string[] = [];
+    const imgEls = document.querySelectorAll('.media-container img, .note-slider img, .carousel-item img');
+    imgEls.forEach((img: any) => {
+      const src = img.src || img.getAttribute('src');
+      if (src && !src.includes('avatar') && !images.includes(src)) {
+        images.push(src.split('!')[0]);
+      }
+    });
+
+    const note: XhsNote = {
+      id: noteId,
+      xsecToken,
+      title: title || desc.slice(0, 20),
+      desc,
+      type: 'normal',
+      author: {
+        id: '',
+        name: userEl?.textContent?.trim() || '小红书用户',
+        avatar: avatarEl?.src || '',
+      },
+      interactInfo: {
+        likedCount: 0,
+        collectedCount: 0,
+        commentCount: 0,
+        shareCount: 0,
+      },
+      tagList: [],
+      ipLocation: '',
+      time: Date.now(),
+      dateStr: new Date().toLocaleString(),
+      images,
+      url: window.location.href,
+    };
+    return note;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * 核心场景 3：单篇笔记全深度采集（双引擎：State/DOM 秒提 + 网络 RPC 递归穿透）
  */
 export async function crawlSingleNoteDeep(
   noteId: string,
@@ -65,34 +154,48 @@ export async function crawlSingleNoteDeep(
   onLog: (logText: string) => void,
   shouldStop?: () => boolean
 ): Promise<{ note: XhsNote | null; comments: XhsComment[]; report: NoteCrawlItemReport }> {
-  onLog(`🎯 开始对单篇笔记 [${noteId.slice(-6)}] 发起全深度采集...`);
+  onLog(`🎯 开始对笔记 [${noteId.slice(-6)}] 发起全深度采集...`);
+  recordLog('INFO', `开始单篇深度采集: noteId=${noteId}`);
 
-  // 1. 获取笔记 100% 完整详情（全量正文、原画直链、精确秒级物理时间）
   let note: XhsNote | null = null;
-  const feedUrl = '/api/sns/web/v1/feed';
-  const feedPayload = {
-    source_note_id: noteId,
-    image_formats: ['jpg', 'webp', 'avif'],
-    extra: { need_body_topic: '1' },
-    xsec_source: 'pc_user',
-    xsec_token: xsecToken || '',
-  };
 
-  await sleepSafe(1500, 2500);
-  const feedRes = await callXhsApi(feedUrl, 'POST', feedPayload);
-
-  if (feedRes.success && feedRes.data) {
-    const rawFeedItem = feedRes.data?.data?.items?.[0] || feedRes.data?.items?.[0] || feedRes.data?.data?.note_card;
-    note = parseRawNote(rawFeedItem);
+  // 1. 优先尝试从当前页面 State 极速读取
+  const pageDirect = await fetchPageStateDirect(noteId);
+  if (pageDirect.note) {
+    note = parseRawNote(pageDirect.note);
     if (note) {
-      onLog(`✓ 笔记全文与高清素材提取成功: 《${note.title.slice(0, 15) || note.id}》`);
+      onLog(`✓ [内存秒提] 成功提取笔记正文与素材: 《${note.title.slice(0, 15) || note.id}》`);
     }
-  } else {
-    const errObj = classifyXhsError(feedRes.status, feedRes.data);
-    onLog(`⚠️ 笔记详情获取提示: ${errObj.userMessage}`);
   }
 
-  // 2. 获取全量评论与展开的折叠回复
+  // 2. 若内存中未取到，调用网络 feed 详情接口
+  if (!note) {
+    const feedUrl = '/api/sns/web/v1/feed';
+    const feedPayload = {
+      source_note_id: noteId,
+      image_formats: ['jpg', 'webp', 'avif'],
+      extra: { need_body_topic: '1' },
+      xsec_source: 'pc_user',
+      xsec_token: xsecToken || '',
+    };
+
+    await sleepSafe(1000, 2000);
+    const feedRes = await callXhsApi(feedUrl, 'POST', feedPayload);
+
+    if (feedRes.success && feedRes.data) {
+      const rawFeedItem = feedRes.data?.data?.items?.[0] || feedRes.data?.items?.[0] || feedRes.data?.data?.note_card;
+      note = parseRawNote(rawFeedItem);
+      if (note) {
+        onLog(`✓ [网络提取] 笔记详情提取成功: 《${note.title.slice(0, 15) || note.id}》`);
+      }
+    } else {
+      const errObj = classifyXhsError(feedRes.status, feedRes.data);
+      onLog(`⚠️ 详情接口响应提示: ${errObj.userMessage}，启用 DOM 兜底引擎`);
+      note = extractNoteFromDOM(noteId, xsecToken);
+    }
+  }
+
+  // 3. 全量递归抓取评论区
   const { comments, report } = await crawlAllCommentsForNote(
     noteId,
     xsecToken,
@@ -108,7 +211,7 @@ export async function crawlSingleNoteDeep(
 }
 
 /**
- * 核心场景 3 批量扩展：批量选定笔记全深度采集
+ * 批量选定笔记全深度采集
  */
 export async function crawlBatchNotesDeep(
   targetNotes: Array<{ id: string; xsecToken?: string; title?: string }>,
@@ -141,7 +244,6 @@ export async function crawlBatchNotesDeep(
 
     const target = targetNotes[i];
 
-    // 批次安全冷却：每 10 篇休息 25 秒
     if (i > 0 && i % 10 === 0) {
       options.onLog(`🛡️ [安全频控] 已连续深度采集 ${i} 篇，开始 25 秒休息冷却...`);
       for (let cd = 25; cd > 0; cd--) {
@@ -204,7 +306,7 @@ export async function crawlBatchNotesDeep(
 }
 
 /**
- * 递归抓取单篇笔记全量评论（解决一级评论分页 + 二级折叠回复自动穿透）
+ * 递归抓取单篇笔记全量评论
  */
 export async function crawlAllCommentsForNote(
   noteId: string,
@@ -223,7 +325,6 @@ export async function crawlAllCommentsForNote(
 
   onLog(`🚀 开始抓取评论区 (Note: ${noteId.slice(-6)})...`, 0);
 
-  // 1. 遍历一级评论分页
   while (hasMorePrimary) {
     if (shouldStop && shouldStop()) {
       userStopped = true;
@@ -267,7 +368,7 @@ export async function crawlAllCommentsForNote(
     }
     onLog(`✓ 一级主评第 ${primaryPage} 页成功获取 ${newInPage} 条`, allComments.length);
 
-    // 2. 递归穿透并展开所有被折叠的“展开 X 条回复”
+    // 展开所有被折叠的“展开 X 条回复”
     for (const rawC of rawComments) {
       if (shouldStop && shouldStop()) {
         userStopped = true;
@@ -323,7 +424,6 @@ export async function crawlAllCommentsForNote(
     }
   }
 
-  // 诊断报告生成
   let reportStatus: 'full' | 'partial' | 'failed' = 'full';
   let reportReason = '官方接口已返回末页信号(无更多评论)，一级主评与展开折叠回复已 100% 完整抓取完毕。';
   let errorCode = 0;
@@ -451,7 +551,7 @@ export async function crawlAllNotesForBlogger(
 
     // 批次安全冷却：每 10 篇休息 25 秒
     if (i > 0 && i % 10 === 0) {
-      log(`🛡️ [安全频控] 已连续采集 ${i} 篇笔记，开始 25 秒休息冷却（保护账号安全，倒计时结束后自动继续）`);
+      log(`🛡️ [安全频控] 已连续采集 ${i} 篇笔记，开始 25 秒休息冷却...`);
       for (let cd = 25; cd > 0; cd--) {
         if (shouldStop && shouldStop()) break;
         options.onCountdown(cd);

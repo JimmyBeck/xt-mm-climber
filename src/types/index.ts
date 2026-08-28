@@ -86,6 +86,13 @@ export interface CrawlTaskSummaryReport {
   details: NoteCrawlItemReport[];
 }
 
+export interface DiagnosticLog {
+  timestamp: string;
+  type: 'INFO' | 'WARN' | 'ERROR' | 'NET_INTERCEPT' | 'RPC_REQ' | 'RPC_RES';
+  message: string;
+  detail?: any;
+}
+
 /**
  * 小红书标准化底层异常枚举
  */

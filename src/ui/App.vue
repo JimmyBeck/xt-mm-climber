@@ -292,8 +292,26 @@
                 </div>
 
                 <div class="border-t border-slate-800 pt-2 flex items-center justify-between text-[10px] text-slate-400">
-                  <span>已捕获笔记: {{ notes.length }} 篇</span>
-                  <span>已捕获评论: {{ comments.length }} 条</span>
+                  <div class="flex items-center gap-1.5">
+                    <span>已捕获笔记: {{ notes.length }} 篇</span>
+                    <span>| 评论: {{ comments.length }} 条</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      @click="handleCopyLogs"
+                      class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700 hover:text-white transition"
+                      title="复制诊断日志到剪贴板"
+                    >
+                      {{ logCopied ? '已复制!' : '复制日志' }}
+                    </button>
+                    <button
+                      @click="downloadLogsAsJson"
+                      class="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700 hover:text-white transition"
+                      title="下载排错日志 JSON 文件"
+                    >
+                      下载排错日志
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -615,10 +633,12 @@ import type { XhsNote, XhsComment, SniffMessage, CrawlTaskSummaryReport } from '
 import { parseNotesPayload, parseCommentsPayload } from '../core/parser';
 import { exportNotesToExcel, exportCommentsToExcel, downloadNoteMediaAsZip } from '../core/exporter';
 import { crawlSingleNoteDeep, crawlBatchNotesDeep, crawlAllNotesForBlogger } from '../core/crawler';
+import { downloadLogsAsJson, copyLogsToClipboard, recordLog } from '../core/logger';
 
 const isOpen = ref(false);
 const activeTab = ref<'notes' | 'comments' | 'automation' | 'report'>('notes');
 const isExporting = ref(false);
+const logCopied = ref(false);
 
 // 自动化采集状态
 const isCrawling = ref(false);
@@ -940,14 +960,34 @@ function clearData() {
   latestReport.value = null;
 }
 
+async function handleCopyLogs() {
+  const ok = await copyLogsToClipboard();
+  if (ok) {
+    logCopied.value = true;
+    setTimeout(() => {
+      logCopied.value = false;
+    }, 2000);
+  }
+}
+
+function handleDiagnosticMessage(event: MessageEvent) {
+  const msg = event.data;
+  if (!msg) return;
+  if (msg.type === 'XHS_DIAGNOSTIC_LOG') {
+    recordLog(msg.logType, msg.message, msg.detail);
+  }
+}
+
 onMounted(() => {
   window.addEventListener('message', handleCapturedMessage);
+  window.addEventListener('message', handleDiagnosticMessage);
   checkCurrentUrlContext();
   window.addEventListener('popstate', checkCurrentUrlContext);
 });
 
 onUnmounted(() => {
   window.removeEventListener('message', handleCapturedMessage);
+  window.removeEventListener('message', handleDiagnosticMessage);
   window.removeEventListener('popstate', checkCurrentUrlContext);
 });
 </script>
