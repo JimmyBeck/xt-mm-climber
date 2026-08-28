@@ -56,7 +56,7 @@ export function callXhsApi(
 }
 
 /**
- * 核心场景 2：单篇笔记全深度采集流 (Single Note Deep Crawl)
+ * 核心场景 3：单篇笔记全深度采集 (Single Note Deep Crawl)
  * 100% 获取：完整全文正文 + 物理精确时间戳 + 无水印素材 + 全量一级与折叠子回复
  */
 export async function crawlSingleNoteDeep(
@@ -105,6 +105,102 @@ export async function crawlSingleNoteDeep(
   }
 
   return { note, comments, report };
+}
+
+/**
+ * 核心场景 3 批量扩展：批量选定笔记全深度采集
+ */
+export async function crawlBatchNotesDeep(
+  targetNotes: Array<{ id: string; xsecToken?: string; title?: string }>,
+  options: {
+    onLog: (text: string) => void;
+    onCountdown: (remainingSeconds: number) => void;
+    onNoteCaptured?: (note: XhsNote) => void;
+    onCommentsCaptured?: (comments: XhsComment[]) => void;
+  },
+  shouldStop?: () => boolean
+): Promise<{ notes: XhsNote[]; comments: XhsComment[]; summaryReport: CrawlTaskSummaryReport }> {
+  const startTime = new Date();
+  const allNotes: XhsNote[] = [];
+  const allComments: XhsComment[] = [];
+  const noteReports: NoteCrawlItemReport[] = [];
+
+  options.onLog(`🎯 开始批量全深度采集选中的 ${targetNotes.length} 篇笔记...`);
+
+  for (let i = 0; i < targetNotes.length; i++) {
+    if (shouldStop && shouldStop()) {
+      noteReports.push({
+        id: targetNotes[i].id,
+        title: targetNotes[i].title || targetNotes[i].id,
+        status: 'partial',
+        commentCount: 0,
+        reason: '因用户手动点击停止任务，此篇未执行抓取。',
+      });
+      continue;
+    }
+
+    const target = targetNotes[i];
+
+    // 批次安全冷却：每 10 篇休息 25 秒
+    if (i > 0 && i % 10 === 0) {
+      options.onLog(`🛡️ [安全频控] 已连续深度采集 ${i} 篇，开始 25 秒休息冷却...`);
+      for (let cd = 25; cd > 0; cd--) {
+        if (shouldStop && shouldStop()) break;
+        options.onCountdown(cd);
+        options.onLog(`⏳ [安全冷却中] 倒计时 ${cd} 秒后自动继续采集第 ${i + 1} 篇...`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      options.onCountdown(0);
+      options.onLog(`▶️ 冷却结束，继续深度处理第 ${i + 1} 篇！`);
+    }
+
+    options.onLog(`▶️ [${i + 1}/${targetNotes.length}] 正在深度采集: ${target.title || target.id.slice(-6)}`);
+
+    const { note, comments: noteComments, report } = await crawlSingleNoteDeep(
+      target.id,
+      target.xsecToken || '',
+      (stepText) => options.onLog(`[${i + 1}/${targetNotes.length}] ${stepText}`),
+      shouldStop
+    );
+
+    if (note) {
+      allNotes.push(note);
+      if (options.onNoteCaptured) options.onNoteCaptured(note);
+    }
+    for (const c of noteComments) {
+      allComments.push(c);
+    }
+    if (options.onCommentsCaptured) options.onCommentsCaptured(noteComments);
+
+    noteReports.push(report);
+    await sleepSafe(2000, 3500);
+  }
+
+  const endTime = new Date();
+  const durationSec = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
+  const minutes = Math.floor(durationSec / 60);
+  const seconds = durationSec % 60;
+  const durationText = minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
+
+  const fullCount = noteReports.filter((r) => r.status === 'full').length;
+  const partialCount = noteReports.filter((r) => r.status === 'partial').length;
+  const failedCount = noteReports.filter((r) => r.status === 'failed').length;
+
+  const summaryReport: CrawlTaskSummaryReport = {
+    taskId: 'TASK_BATCH_' + Date.now(),
+    startTime: startTime.toLocaleTimeString(),
+    endTime: endTime.toLocaleTimeString(),
+    durationText,
+    totalNotesTarget: targetNotes.length,
+    fullCount,
+    partialCount,
+    failedCount,
+    totalCommentsCaptured: allComments.length,
+    details: noteReports,
+  };
+
+  options.onLog(`🎉 批量深度采集完成！共处理 ${targetNotes.length} 篇，捕获评论 ${allComments.length} 条。`);
+  return { notes: allNotes, comments: allComments, summaryReport };
 }
 
 /**
@@ -257,7 +353,7 @@ export async function crawlAllCommentsForNote(
 }
 
 /**
- * 核心场景 3：博主全量采集流水线（带错误码自愈与人话版汇总报告）
+ * 核心场景 2：博主全量采集流水线
  */
 export async function crawlAllNotesForBlogger(
   userId: string,

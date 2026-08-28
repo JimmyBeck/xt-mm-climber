@@ -32,8 +32,8 @@
     >
       <div
         v-if="isOpen"
-        class="fixed right-0 top-0 bottom-0 flex w-[540px] max-w-[94vw] flex-col border-l border-slate-200 bg-white shadow-2xl"
-        style="position: fixed; right: 0; top: 0; bottom: 0; width: 540px; max-width: 94vw; z-index: 2147483647; background-color: #ffffff; box-shadow: -4px 0 25px rgba(0,0,0,0.15);"
+        class="fixed right-0 top-0 bottom-0 flex w-[560px] max-w-[95vw] flex-col border-l border-slate-200 bg-white shadow-2xl"
+        style="position: fixed; right: 0; top: 0; bottom: 0; width: 560px; max-width: 95vw; z-index: 2147483647; background-color: #ffffff; box-shadow: -4px 0 25px rgba(0,0,0,0.15);"
       >
         <!-- 抽屉头部 -->
         <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/90 px-4 py-3">
@@ -45,7 +45,7 @@
               <h2 class="text-sm font-bold text-slate-900 leading-tight">小天媒媒助手</h2>
               <p class="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
                 <ShieldCheck class="h-3.5 w-3.5 text-emerald-500" />
-                账号安全第一（错误码自愈 + 拟人化频控）
+                账号安全第一（真实浏览器宿主 + 错误码自愈）
               </p>
             </div>
           </div>
@@ -53,7 +53,7 @@
             <button
               @click="clearData"
               class="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-              title="清空已捕获数据"
+              title="清空当前列表数据"
             >
               <Trash2 class="h-4 w-4" />
             </button>
@@ -65,6 +65,28 @@
               <X class="h-4 w-4" />
             </button>
           </div>
+        </div>
+
+        <!-- 顶部常驻：当前打开笔记一键深度采集条（场景 3 快捷入口） -->
+        <div
+          v-if="currentNoteId"
+          class="flex items-center justify-between bg-gradient-to-r from-rose-50 to-pink-50 border-b border-rose-100 px-4 py-2 text-xs"
+        >
+          <div class="flex items-center gap-1.5 truncate max-w-[320px]">
+            <span class="flex h-2 w-2 rounded-full bg-rose-500 animate-ping"></span>
+            <span class="text-slate-600 font-medium shrink-0">当前打开:</span>
+            <span class="font-bold text-rose-700 truncate" :title="currentNoteTitle || currentNoteId">
+              {{ currentNoteTitle || `笔记_${currentNoteId.slice(-6)}` }}
+            </span>
+          </div>
+          <button
+            :disabled="isCrawling"
+            @click="startSingleNoteDeepCrawl(currentNoteId, currentXsecToken)"
+            class="flex items-center gap-1 rounded-md bg-rose-500 px-2.5 py-1 text-xs font-semibold text-white shadow-xs transition hover:bg-rose-600 disabled:opacity-50"
+          >
+            <Zap class="h-3 w-3" />
+            <span>深度采集此篇</span>
+          </button>
         </div>
 
         <!-- 标签页切换 -->
@@ -96,7 +118,7 @@
               ]"
             >
               <Sparkles class="h-3 w-3" />
-              <span>全自动采集</span>
+              <span>深度与全量采集</span>
             </button>
             <button
               v-if="latestReport"
@@ -136,71 +158,71 @@
 
         <!-- 主内容区 -->
         <div class="flex-1 overflow-y-auto p-4 space-y-3">
-          <!-- 1. 全自动采集工作台 (Automation) -->
+          <!-- 1. 深度与全量采集 Tab (Automation) -->
           <template v-if="activeTab === 'automation'">
             <div class="space-y-4">
-              <!-- 安全守则与存活监控公告 -->
-              <div class="rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 text-xs text-amber-800 space-y-1">
-                <div class="flex items-center justify-between font-bold text-amber-900">
-                  <span class="flex items-center gap-1.5">
-                    <ShieldAlert class="h-4 w-4 text-amber-600" />
-                    底层错误码标准化自愈已就绪
-                  </span>
-                  <span class="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">300012/461 自愈中</span>
-                </div>
-                <p class="text-[11px] leading-relaxed text-amber-700">
-                  • <b>单篇全深度采集（新）</b>：一键获取单篇 100% 正文长文、物理时间戳、无水印素材与全部展开评论。<br />
-                  • <b>智能错误码自愈</b>：遇到 404 删除/私密自动跳过，遇到频控自动休眠 60s，绝不死锁卡死。
-                </p>
-              </div>
-
-              <!-- 核心场景 2: 指定单篇笔记全深度采集 -->
-              <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <div>
-                  <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <Layers class="h-4 w-4 text-rose-500" />
-                    单篇笔记全深度采集 (正文+素材+全量评论)
+              <!-- 场景 3：指定笔记或多选批量深度采集 -->
+              <div class="rounded-xl border border-rose-200/90 bg-gradient-to-br from-rose-50/40 to-white p-4 shadow-xs">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-rose-950 flex items-center gap-1.5">
+                    <CheckSquare class="h-4 w-4 text-rose-500" />
+                    场景 3：手动指定 / 批量勾选笔记深度采集
                   </h3>
-                  <p class="text-[11px] text-slate-400 mt-0.5">
-                    100% 获取全文长文、精确秒级时间戳、无水印原图/视频及全部展开折叠回复
-                  </p>
+                  <span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-medium">100% 正文+素材+展开评论</span>
                 </div>
+                <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                  可直接粘贴笔记链接（支持换行批量粘贴），或在「笔记列表」中勾选多篇后一键深度采集：
+                </p>
 
-                <div class="mt-3 flex items-center justify-between bg-slate-50 p-2.5 rounded-lg text-xs">
-                  <span class="text-slate-600 font-medium">目标笔记 ID:</span>
-                  <span class="font-mono text-slate-800 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200">
-                    {{ currentNoteId || '请先在页面上打开任意一篇笔记' }}
-                  </span>
+                <div class="mt-3 space-y-2">
+                  <textarea
+                    v-model="manualNoteInput"
+                    rows="2"
+                    placeholder="在此粘贴小红书笔记链接或笔记 ID（支持换行粘贴多条）..."
+                    class="w-full rounded-lg border border-slate-200 p-2.5 text-xs text-slate-800 focus:border-rose-400 focus:outline-none"
+                  ></textarea>
+
+                  <div class="flex items-center justify-between pt-1">
+                    <button
+                      :disabled="isCrawling || !manualNoteInput.trim()"
+                      @click="startManualNotesDeepCrawl"
+                      class="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-rose-500 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-600 disabled:opacity-50"
+                    >
+                      <Zap class="h-3.5 w-3.5" />
+                      <span>开始深度采集输入的笔记</span>
+                    </button>
+                  </div>
                 </div>
-
-                <button
-                  :disabled="isCrawling || !currentNoteId"
-                  @click="startSingleNoteDeepCrawl"
-                  class="mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-50"
-                >
-                  <Play class="h-3.5 w-3.5" />
-                  <span>一键全深度采集此篇笔记</span>
-                </button>
               </div>
 
-              <!-- 核心场景 3: 指定博主全部笔记与评论全量采集 -->
+              <!-- 场景 2：博主全量笔记与评论批量采集 -->
               <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-                <div>
+                <div class="flex items-center justify-between">
                   <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                     <UserCheck class="h-4 w-4 text-rose-500" />
-                    博主全量笔记与评论批量采集
+                    场景 2：指定博主全部笔记批量采集
                   </h3>
-                  <p class="text-[11px] text-slate-400 mt-0.5">
-                    游标扫描博主全部历史笔记，逐篇提取正文、素材与展开所有评论
-                  </p>
+                  <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">博主全量资产归档</span>
                 </div>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  输入博主主页链接或 ID，全量游标翻页扫描博主全部历史作品
+                </p>
 
                 <div class="mt-3 space-y-2.5">
                   <div>
-                    <label class="text-[11px] font-medium text-slate-600 block mb-1">博主 User ID / 主页链接</label>
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="text-[11px] font-medium text-slate-600">博主 User ID / 主页链接</label>
+                      <button
+                        v-if="detectedUserId"
+                        @click="targetUserId = detectedUserId"
+                        class="text-[10px] text-rose-600 hover:underline"
+                      >
+                        填入当前博主 (ID: {{ detectedUserId.slice(-6) }})
+                      </button>
+                    </div>
                     <input
                       v-model="targetUserId"
-                      placeholder="自动读取当前博主主页，或粘贴博主链接/ID..."
+                      placeholder="粘贴博主主页链接（如 https://www.xiaohongshu.com/user/profile/...）或 User ID..."
                       class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 focus:border-rose-400 focus:outline-none"
                     />
                   </div>
@@ -208,7 +230,7 @@
                   <div class="flex items-center justify-between text-xs pt-1">
                     <label class="flex items-center gap-1.5 text-slate-700 cursor-pointer">
                       <input type="checkbox" v-model="autoFetchComments" class="rounded text-rose-500" />
-                      <span>同时递归展开每篇笔记的全部评论</span>
+                      <span>同时递归展开每篇的全部评论</span>
                     </label>
                     <div class="flex items-center gap-1 text-[11px] text-slate-500">
                       <span>限制篇数:</span>
@@ -224,15 +246,15 @@
                   <button
                     :disabled="isCrawling || !targetUserId"
                     @click="startBloggerCrawl"
-                    class="w-full flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
+                    class="w-full flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
                   >
                     <Play class="h-3.5 w-3.5" />
-                    <span>开始全量采集该博主数据</span>
+                    <span>开始全量采集该博主全部笔记</span>
                   </button>
                 </div>
               </div>
 
-              <!-- 运行中状态监控与实时心跳日志终端 -->
+              <!-- 运行中状态监控与实时心跳日志终端 (Live Terminal) -->
               <div v-if="isCrawling || liveLogs.length > 0" class="rounded-xl border border-slate-200 bg-slate-900 p-3.5 text-white space-y-2.5 font-mono">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2 text-xs">
                   <span class="flex items-center gap-2 text-emerald-400 font-bold">
@@ -277,94 +299,64 @@
             </div>
           </template>
 
-          <!-- 2. 人话版任务结算与诊断报告 Tab (Report) -->
-          <template v-if="activeTab === 'report' && latestReport">
-            <div class="space-y-4">
-              <!-- 概览看板 -->
-              <div class="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-purple-50/50 p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                    <FileCheck class="h-4 w-4 text-indigo-600" />
-                    采集诊断与结算报告
-                  </span>
-                  <span class="text-[10px] font-mono text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
-                    总耗时: {{ latestReport.durationText }}
-                  </span>
-                </div>
-
-                <div class="grid grid-cols-3 gap-2 text-center">
-                  <div class="bg-white p-2.5 rounded-lg border border-emerald-100 shadow-xs">
-                    <div class="text-base font-bold text-emerald-600">{{ latestReport.fullCount }} 篇</div>
-                    <div class="text-[10px] text-slate-500 mt-0.5">100% 完整抓取</div>
-                  </div>
-                  <div class="bg-white p-2.5 rounded-lg border border-amber-100 shadow-xs">
-                    <div class="text-base font-bold text-amber-600">{{ latestReport.partialCount }} 篇</div>
-                    <div class="text-[10px] text-slate-500 mt-0.5">部分完成/自愈</div>
-                  </div>
-                  <div class="bg-white p-2.5 rounded-lg border border-rose-100 shadow-xs">
-                    <div class="text-base font-bold text-rose-600">{{ latestReport.failedCount }} 篇</div>
-                    <div class="text-[10px] text-slate-500 mt-0.5">失败/已删除</div>
-                  </div>
-                </div>
-
-                <div class="text-[11px] text-slate-600 bg-white/80 p-2.5 rounded-lg border border-indigo-50 leading-relaxed">
-                  💡 <b>定义说明</b>：100% 完整抓取代表官方接口已明确返回最后一页信号（无更多内容），所有一级评论与展开折叠回复已全部捕获。
-                </div>
-              </div>
-
-              <!-- 逐篇人话明细列表 -->
-              <div class="space-y-2">
-                <h4 class="text-xs font-bold text-slate-800">各篇笔记抓取明细与错误码自愈诊断</h4>
-                <div
-                  v-for="item in latestReport.details"
-                  :key="item.id"
-                  class="rounded-xl border border-slate-200/80 bg-white p-3 space-y-1.5 shadow-xs"
-                >
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="font-bold text-slate-800 truncate max-w-[280px]" :title="item.title">
-                      {{ item.title }}
-                    </span>
-                    <span
-                      :class="[
-                        'px-2 py-0.5 rounded text-[10px] font-bold',
-                        item.status === 'full' ? 'bg-emerald-100 text-emerald-800' :
-                        item.status === 'partial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-                      ]"
-                    >
-                      {{ item.status === 'full' ? '100% 完毕' : item.status === 'partial' ? '部分完成' : '失败' }}
-                    </span>
-                  </div>
-                  <div class="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>捕获评论: {{ item.commentCount }} 条</span>
-                    <span class="font-mono text-[10px] text-slate-400">ID: {{ item.id.slice(-8) }}</span>
-                  </div>
-                  <div class="text-[11px] text-slate-600 bg-slate-50 p-2 rounded leading-snug">
-                    <span class="font-medium text-slate-700">状态说明：</span>{{ item.reason }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- 3. 笔记列表 Tab (Notes) -->
+          <!-- 2. 笔记列表 Tab (Notes - 包含场景 1 嗅探与场景 3 多选勾选) -->
           <template v-if="activeTab === 'notes'">
+            <!-- 批量操作栏 (场景 3: 手动多选采集) -->
+            <div v-if="notes.length > 0" class="flex items-center justify-between bg-slate-50 p-2 rounded-lg text-xs border border-slate-200/80">
+              <div class="flex items-center gap-2">
+                <label class="flex items-center gap-1.5 font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    :checked="isAllSelected"
+                    @change="toggleSelectAll"
+                    class="rounded text-rose-500 h-3.5 w-3.5"
+                  />
+                  <span>全选 (已选 {{ selectedNoteIds.size }} 篇)</span>
+                </label>
+              </div>
+
+              <button
+                :disabled="isCrawling || selectedNoteIds.size === 0"
+                @click="startSelectedNotesDeepCrawl"
+                class="flex items-center gap-1 rounded bg-rose-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-600 disabled:opacity-40 transition"
+              >
+                <Zap class="h-3 w-3" />
+                <span>深度采集选中的 {{ selectedNoteIds.size }} 篇</span>
+              </button>
+            </div>
+
             <div
               v-if="notes.length === 0"
               class="flex flex-col items-center justify-center py-16 text-center text-slate-400"
             >
               <Inbox class="h-10 w-10 text-slate-300 mb-2 stroke-[1.5]" />
               <p class="text-xs font-medium">暂无捕获笔记</p>
-              <p class="text-[11px] text-slate-400 mt-1 max-w-[240px]">
-                正常浏览小红书，或在「全自动采集」中一键全深度抓取单篇或博主全部笔记
+              <p class="text-[11px] text-slate-400 mt-1 max-w-[260px] leading-relaxed">
+                • <b>场景 1</b>：在网页上正常滑动浏览，笔记将自动嗅探展示于此；<br />
+                • <b>场景 3</b>：勾选列表里的笔记，可一键将选中的笔记升级为 100% 全深度采集。
               </p>
             </div>
 
             <div
               v-for="note in notes"
               :key="note.id"
-              class="group relative rounded-xl border border-slate-200/80 bg-white p-3 shadow-xs transition hover:border-rose-200 hover:shadow-md"
+              :class="[
+                'group relative rounded-xl border p-3 shadow-xs transition',
+                selectedNoteIds.has(note.id) ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200/80 bg-white hover:border-rose-200'
+              ]"
             >
-              <div class="flex gap-3">
+              <div class="flex gap-3 items-start">
+                <!-- 场景 3 多选勾选框 -->
+                <div class="pt-1">
+                  <input
+                    type="checkbox"
+                    :checked="selectedNoteIds.has(note.id)"
+                    @change="toggleSelectNote(note.id)"
+                    class="rounded text-rose-500 h-4 w-4 cursor-pointer"
+                  />
+                </div>
+
+                <!-- 封面缩略图 -->
                 <div class="relative h-20 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-100">
                   <img
                     v-if="note.images.length > 0"
@@ -380,6 +372,7 @@
                   </div>
                 </div>
 
+                <!-- 标题与详情 -->
                 <div class="flex flex-1 flex-col justify-between overflow-hidden">
                   <div>
                     <h3 class="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-rose-600 transition" :title="note.title || note.desc">
@@ -416,7 +409,16 @@
               <!-- 快捷操作栏 -->
               <div class="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px]">
                 <span class="text-slate-400">{{ note.dateStr }}</span>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1.5">
+                  <button
+                    :disabled="isCrawling"
+                    @click="startSingleNoteDeepCrawl(note.id, note.xsecToken)"
+                    class="flex items-center gap-0.5 rounded bg-rose-50 px-2 py-0.5 text-rose-600 hover:bg-rose-100 font-medium transition"
+                    title="将此篇升级为全深度采集"
+                  >
+                    <Zap class="h-3 w-3" />
+                    深度采集此篇
+                  </button>
                   <button
                     @click="handleDownloadMedia(note)"
                     class="flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition"
@@ -437,7 +439,7 @@
             </div>
           </template>
 
-          <!-- 4. 评论列表 Tab (Comments) -->
+          <!-- 3. 评论列表 Tab (Comments) -->
           <template v-if="activeTab === 'comments'">
             <div
               v-if="comments.length === 0"
@@ -446,7 +448,7 @@
               <MessageSquare class="h-10 w-10 text-slate-300 mb-2 stroke-[1.5]" />
               <p class="text-xs font-medium">暂无捕获评论</p>
               <p class="text-[11px] text-slate-400 mt-1 max-w-[240px]">
-                在「全自动采集」中点击全量提取，系统会自动递归展开所有折叠回复
+                在笔记详情滑动，或在「深度采集」中一键展开所有折叠回复
               </p>
             </div>
 
@@ -492,15 +494,79 @@
               </div>
             </div>
           </template>
+
+          <!-- 4. 人话版任务结算与诊断报告 Tab (Report) -->
+          <template v-if="activeTab === 'report' && latestReport">
+            <div class="space-y-4">
+              <div class="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-purple-50/50 p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                    <FileCheck class="h-4 w-4 text-indigo-600" />
+                    采集诊断与结算报告
+                  </span>
+                  <span class="text-[10px] font-mono text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                    总耗时: {{ latestReport.durationText }}
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div class="bg-white p-2.5 rounded-lg border border-emerald-100 shadow-xs">
+                    <div class="text-base font-bold text-emerald-600">{{ latestReport.fullCount }} 篇</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">100% 完整抓取</div>
+                  </div>
+                  <div class="bg-white p-2.5 rounded-lg border border-amber-100 shadow-xs">
+                    <div class="text-base font-bold text-amber-600">{{ latestReport.partialCount }} 篇</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">部分完成/自愈</div>
+                  </div>
+                  <div class="bg-white p-2.5 rounded-lg border border-rose-100 shadow-xs">
+                    <div class="text-base font-bold text-rose-600">{{ latestReport.failedCount }} 篇</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">失败/已删除</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 逐篇明细 -->
+              <div class="space-y-2">
+                <h4 class="text-xs font-bold text-slate-800">各篇笔记抓取明细</h4>
+                <div
+                  v-for="item in latestReport.details"
+                  :key="item.id"
+                  class="rounded-xl border border-slate-200/80 bg-white p-3 space-y-1.5 shadow-xs"
+                >
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-slate-800 truncate max-w-[280px]" :title="item.title">
+                      {{ item.title }}
+                    </span>
+                    <span
+                      :class="[
+                        'px-2 py-0.5 rounded text-[10px] font-bold',
+                        item.status === 'full' ? 'bg-emerald-100 text-emerald-800' :
+                        item.status === 'partial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                      ]"
+                    >
+                      {{ item.status === 'full' ? '100% 完毕' : item.status === 'partial' ? '部分完成' : '失败' }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>捕获评论: {{ item.commentCount }} 条</span>
+                    <span class="font-mono text-[10px] text-slate-400">ID: {{ item.id.slice(-8) }}</span>
+                  </div>
+                  <div class="text-[11px] text-slate-600 bg-slate-50 p-2 rounded leading-snug">
+                    <span class="font-medium text-slate-700">说明：</span>{{ item.reason }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
 
         <!-- 底部状态条 -->
-        <div class="border-t border-slate-200/80 bg-slate-50/90 px-4 py-2.5 text-center text-[11px] text-slate-400 flex items-center justify-between">
+        <div class="border-t border-slate-200/80 bg-slate-50/90 px-4 py-2 text-center text-[11px] text-slate-400 flex items-center justify-between">
           <span>总计捕获：{{ notes.length }} 篇笔记 / {{ comments.length }} 条评论</span>
           <span class="text-slate-300">|</span>
           <span class="text-emerald-600 font-medium flex items-center gap-1">
             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-            错误码自愈引擎已就绪
+            原生 MAIN 核心就绪
           </span>
         </div>
       </div>
@@ -525,14 +591,14 @@ import {
   Play,
   UserCheck,
   ShieldCheck,
-  ShieldAlert,
   FileCheck,
-  Layers,
+  Zap,
+  CheckSquare,
 } from 'lucide-vue-next';
 import type { XhsNote, XhsComment, SniffMessage, CrawlTaskSummaryReport } from '../types';
 import { parseNotesPayload, parseCommentsPayload } from '../core/parser';
 import { exportNotesToExcel, exportCommentsToExcel, downloadNoteMediaAsZip } from '../core/exporter';
-import { crawlSingleNoteDeep, crawlAllNotesForBlogger } from '../core/crawler';
+import { crawlSingleNoteDeep, crawlBatchNotesDeep, crawlAllNotesForBlogger } from '../core/crawler';
 
 const isOpen = ref(false);
 const activeTab = ref<'notes' | 'comments' | 'automation' | 'report'>('notes');
@@ -545,12 +611,18 @@ const liveLogs = ref<string[]>([]);
 const cooldownSeconds = ref(0);
 const latestReport = ref<CrawlTaskSummaryReport | null>(null);
 
-// 任务参数
+// 任务参数与输入
 const currentNoteId = ref('');
+const currentNoteTitle = ref('');
 const currentXsecToken = ref('');
+const detectedUserId = ref('');
 const targetUserId = ref('');
+const manualNoteInput = ref('');
 const autoFetchComments = ref(true);
 const maxNotesLimit = ref<number | undefined>(undefined);
+
+// 场景 3：多选选中集合
+const selectedNoteIds = ref<Set<string>>(new Set());
 
 // 数据池（Map去重）
 const notesMap = ref<Map<string, XhsNote>>(new Map());
@@ -558,6 +630,27 @@ const commentsMap = ref<Map<string, XhsComment>>(new Map());
 
 const notes = computed(() => Array.from(notesMap.value.values()));
 const comments = computed(() => Array.from(commentsMap.value.values()));
+
+const isAllSelected = computed(() => {
+  return notes.value.length > 0 && selectedNoteIds.value.size === notes.value.length;
+});
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedNoteIds.value.clear();
+  } else {
+    selectedNoteIds.value = new Set(notes.value.map((n) => n.id));
+  }
+}
+
+function toggleSelectNote(id: string) {
+  if (selectedNoteIds.value.has(id)) {
+    selectedNoteIds.value.delete(id);
+  } else {
+    selectedNoteIds.value.add(id);
+  }
+  selectedNoteIds.value = new Set(selectedNoteIds.value);
+}
 
 function appendLog(text: string) {
   const time = new Date().toTimeString().slice(0, 8);
@@ -574,11 +667,19 @@ function checkCurrentUrlContext() {
     if (tokenMatch) {
       currentXsecToken.value = decodeURIComponent(tokenMatch[1]);
     }
+    const noteObj = notesMap.value.get(noteMatch[1]);
+    if (noteObj) currentNoteTitle.value = noteObj.title;
+  } else {
+    currentNoteId.value = '';
+    currentNoteTitle.value = '';
   }
 
   const userMatch = url.match(/\/user\/profile\/([a-f0-9]+)/i);
-  if (userMatch && !targetUserId.value) {
-    targetUserId.value = userMatch[1];
+  if (userMatch) {
+    detectedUserId.value = userMatch[1];
+    if (!targetUserId.value) {
+      targetUserId.value = userMatch[1];
+    }
   }
 }
 
@@ -591,6 +692,7 @@ function handleCapturedMessage(event: MessageEvent) {
     if (parsedNotes.length > 0) {
       parsedNotes.forEach((n) => notesMap.value.set(n.id, n));
       notesMap.value = new Map(notesMap.value);
+      checkCurrentUrlContext();
     }
   } else if (data.category === 'comments') {
     const parsedComments = parseCommentsPayload(data.data, currentNoteId.value);
@@ -601,22 +703,19 @@ function handleCapturedMessage(event: MessageEvent) {
   }
 }
 
-// 核心场景 2: 单篇笔记全深度采集
-async function startSingleNoteDeepCrawl() {
-  checkCurrentUrlContext();
-  if (!currentNoteId.value) {
-    alert('请先在页面上打开任意一篇小红书笔记');
-    return;
-  }
+// 场景 3 执行：单篇笔记全深度采集
+async function startSingleNoteDeepCrawl(noteId: string, xsecToken = '') {
+  if (!noteId) return;
 
   isCrawling.value = true;
   isStopRequested.value = false;
-  appendLog(`🎯 开始对当前笔记 [${currentNoteId.value.slice(-6)}] 执行全深度采集 (正文+素材+全部评论)...`);
+  activeTab.value = 'automation';
+  appendLog(`🎯 开始对笔记 [${noteId.slice(-6)}] 执行全深度采集 (正文+素材+全部展开评论)...`);
 
   try {
     const { note, comments: list, report } = await crawlSingleNoteDeep(
-      currentNoteId.value,
-      currentXsecToken.value,
+      noteId,
+      xsecToken,
       (text) => appendLog(text),
       () => isStopRequested.value
     );
@@ -625,7 +724,6 @@ async function startSingleNoteDeepCrawl() {
       notesMap.value.set(note.id, note);
       notesMap.value = new Map(notesMap.value);
     }
-
     list.forEach((c) => commentsMap.value.set(c.id, c));
     commentsMap.value = new Map(commentsMap.value);
 
@@ -643,7 +741,7 @@ async function startSingleNoteDeepCrawl() {
     };
 
     activeTab.value = 'report';
-    appendLog(`🎉 笔记全深度采集完毕！正文全文已捕获，共收集 ${list.length} 条评论（含所有展开回复）。`);
+    appendLog(`🎉 笔记深度采集完毕！已提取正文长文并捕获 ${list.length} 条评论（含所有展开回复）。`);
   } catch (err: any) {
     appendLog(`⚠️ 提取中断: ${err?.message || '异常'}`);
   } finally {
@@ -651,7 +749,88 @@ async function startSingleNoteDeepCrawl() {
   }
 }
 
-// 核心场景 3: 博主全量采集
+// 场景 3 执行：手动粘贴多条笔记深度采集
+async function startManualNotesDeepCrawl() {
+  const lines = manualNoteInput.value
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return;
+
+  const targetList: Array<{ id: string; xsecToken?: string }> = [];
+  for (const line of lines) {
+    const m = line.match(/\/explore\/([a-f0-9]+)/i);
+    const tokenMatch = line.match(/xsec_token=([^&]+)/);
+    const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : '';
+    if (m) {
+      targetList.push({ id: m[1], xsecToken: token });
+    } else if (/^[a-f0-9]{24}$/i.test(line)) {
+      targetList.push({ id: line, xsecToken: token });
+    }
+  }
+
+  if (targetList.length === 0) {
+    alert('未能识别到有效的笔记链接或 ID，请检查输入格式');
+    return;
+  }
+
+  await runBatchDeepCrawl(targetList);
+}
+
+// 场景 3 执行：批量深度采集选中的笔记
+async function startSelectedNotesDeepCrawl() {
+  if (selectedNoteIds.value.size === 0) return;
+  const targetList: Array<{ id: string; xsecToken?: string; title?: string }> = [];
+
+  for (const id of selectedNoteIds.value) {
+    const n = notesMap.value.get(id);
+    targetList.push({
+      id,
+      xsecToken: n?.xsecToken || '',
+      title: n?.title || id,
+    });
+  }
+
+  await runBatchDeepCrawl(targetList);
+}
+
+async function runBatchDeepCrawl(targetList: Array<{ id: string; xsecToken?: string; title?: string }>) {
+  isCrawling.value = true;
+  isStopRequested.value = false;
+  activeTab.value = 'automation';
+
+  try {
+    const result = await crawlBatchNotesDeep(
+      targetList,
+      {
+        onLog: (t) => appendLog(t),
+        onCountdown: (sec) => {
+          cooldownSeconds.value = sec;
+        },
+        onNoteCaptured: (n) => {
+          notesMap.value.set(n.id, n);
+          notesMap.value = new Map(notesMap.value);
+        },
+        onCommentsCaptured: (cList) => {
+          cList.forEach((c) => commentsMap.value.set(c.id, c));
+          commentsMap.value = new Map(commentsMap.value);
+        },
+      },
+      () => isStopRequested.value
+    );
+
+    latestReport.value = result.summaryReport;
+    activeTab.value = 'report';
+  } catch (err: any) {
+    appendLog(`⚠️ 批量采集异常: ${err?.message || '网络中断'}`);
+  } finally {
+    isCrawling.value = false;
+    cooldownSeconds.value = 0;
+  }
+}
+
+// 场景 2 执行：博主全量采集
 async function startBloggerCrawl() {
   if (!targetUserId.value) {
     alert('请输入博主 User ID 或主页链接');
@@ -666,6 +845,7 @@ async function startBloggerCrawl() {
 
   isCrawling.value = true;
   isStopRequested.value = false;
+  activeTab.value = 'automation';
   appendLog(`开始对博主 [${uid.slice(-6)}] 发起全量扫描任务...`);
 
   try {
@@ -738,6 +918,7 @@ function clearData() {
   commentsMap.value.clear();
   notesMap.value = new Map();
   commentsMap.value = new Map();
+  selectedNoteIds.value.clear();
   liveLogs.value = [];
   latestReport.value = null;
 }

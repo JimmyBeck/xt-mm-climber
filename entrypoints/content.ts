@@ -8,22 +8,8 @@ export default defineContentScript({
   runAt: 'document_end',
 
   async main(ctx) {
-    console.log('[小天媒媒助手] Content Script 开始注入...');
+    console.log('[小天媒媒助手] UI 宿主开始挂载...');
 
-    // 1. 注入 injected.js 到页面 MAIN World
-    try {
-      const script = document.createElement('script');
-      script.src = chrome.runtime.getURL('/injected.js');
-      script.onload = () => {
-        console.log('[小天媒媒助手] injected.js 加载成功');
-        script.remove();
-      };
-      (document.head || document.documentElement).appendChild(script);
-    } catch (e) {
-      console.error('[小天媒媒助手] 注入 script 异常:', e);
-    }
-
-    // 2. 挂载 Shadow DOM UI
     try {
       const ui = await createShadowRootUi(ctx, {
         name: 'xhs-copilot-ui',
@@ -31,13 +17,12 @@ export default defineContentScript({
         anchor: 'body',
         append: 'last',
         onMount: (container, shadowRoot) => {
-          // 确保 Host 自身有最高层级的 fixed 定位与展示
           const hostStyle = document.createElement('style');
           hostStyle.textContent = `
             :host {
               position: fixed !important;
               right: 0 !important;
-              top: 30% !important;
+              top: 25% !important;
               z-index: 2147483647 !important;
               display: block !important;
               margin: 0 !important;
