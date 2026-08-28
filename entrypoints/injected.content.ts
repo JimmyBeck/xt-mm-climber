@@ -28,10 +28,10 @@ export default defineContentScript({
     }
 
     // 1. 被动拦截 Fetch
-    const rawFetch = window.fetch;
-    if (rawFetch) {
+    const originalFetch = window.fetch;
+    if (originalFetch) {
       window.fetch = async function (...args: Parameters<typeof window.fetch>) {
-        const response = await rawFetch.apply(this, args);
+        const response = await originalFetch.apply(this, args);
         try {
           const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request)?.url || '';
 
@@ -76,7 +76,7 @@ export default defineContentScript({
       };
     }
 
-    // 2. 被动拦截 XMLHttpRequest (针对部分 XHR 请求)
+    // 2. 被动拦截 XMLHttpRequest
     const rawOpen = XMLHttpRequest.prototype.open;
     const rawSend = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, ...args: any[]) {
@@ -120,9 +120,11 @@ export default defineContentScript({
       if (msg.type === 'XHS_API_REQUEST') {
         const { reqId, url, method = 'GET', data = null } = msg;
         try {
-          const headers: Record<string, string> = {
-            'Content-Type': 'application/json;charset=UTF-8',
-          };
+          const headers: Record<string, string> = {};
+
+          if (method.toUpperCase() === 'POST' || method.toUpperCase() === 'PUT') {
+            headers['Content-Type'] = 'application/json;charset=UTF-8';
+          }
 
           // 自动调用小红书原生签名函数 _webmsxyw
           if (typeof (window as any)._webmsxyw === 'function') {
@@ -147,7 +149,8 @@ export default defineContentScript({
             fetchOptions.body = JSON.stringify(data);
           }
 
-          const res = await rawFetch(url, fetchOptions);
+          // 必须在 window 上下文中执行 fetch，杜绝 Illegal invocation
+          const res = await window.fetch(url, fetchOptions);
           const status = res.status;
           let responseJson: any = null;
           try {
@@ -165,20 +168,21 @@ export default defineContentScript({
             '*'
           );
         } catch (err: any) {
+          console.error(`${SENDER_TAG} RPC 执行异常:`, err);
           window.postMessage(
             {
               type: 'XHS_API_RESPONSE',
               reqId,
               status: 500,
               success: false,
-              error: err?.message || '网络异常',
+              error: err?.message || '浏览器内部执行异常',
             },
             '*'
           );
         }
       }
 
-      // 提取当前页面已经注入的 __INITIAL_STATE__
+      // 提取当前页面已注入的 __INITIAL_STATE__
       if (msg.type === 'XHS_MANUAL_EXTRACT_CURRENT_PAGE') {
         extractState();
       }

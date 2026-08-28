@@ -523,6 +523,22 @@
                     <div class="text-[10px] text-slate-500 mt-0.5">失败/已删除</div>
                   </div>
                 </div>
+                <div class="flex gap-2 pt-1">
+                  <button
+                    @click="activeTab = 'notes'"
+                    class="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-white border border-rose-200 p-2.5 text-xs font-bold text-rose-600 shadow-xs hover:bg-rose-50 transition"
+                  >
+                    <FileSpreadsheet class="h-4 w-4" />
+                    <span>查看并导出笔记 ({{ notes.length }})</span>
+                  </button>
+                  <button
+                    @click="activeTab = 'comments'"
+                    class="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-white border border-blue-200 p-2.5 text-xs font-bold text-blue-600 shadow-xs hover:bg-blue-50 transition"
+                  >
+                    <MessageSquare class="h-4 w-4" />
+                    <span>查看并导出评论 ({{ comments.length }})</span>
+                  </button>
+                </div>
               </div>
 
               <!-- 逐篇明细 -->
