@@ -6,6 +6,13 @@ dist
 # 依赖
 node_modules
 
+# 私有战略、商业化演进与智囊协作文档（严禁上传公共 Git）
+.private/
+private/
+*.secret
+*.key
+*.pem
+
 # 本地数据导出文件（防止泄露日常测试数据）
 *.xlsx
 *.zip
