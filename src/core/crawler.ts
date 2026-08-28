@@ -358,6 +358,7 @@ export async function crawlAllCommentsForNote(
 export async function crawlAllNotesForBlogger(
   userId: string,
   options: {
+    xsecToken?: string;
     maxNotes?: number;
     fetchComments?: boolean;
     onLog: (text: string) => void;
@@ -400,7 +401,7 @@ export async function crawlAllNotesForBlogger(
 
     await sleepSafe(2500, 4500);
 
-    const listUrl = `/api/sns/web/v1/user_posted?user_id=${userId}&num=30&cursor=${encodeURIComponent(cursor)}&image_formats=jpg,webp,avif`;
+    const listUrl = `/api/sns/web/v1/user_posted?user_id=${userId}&num=30&cursor=${encodeURIComponent(cursor)}&image_formats=jpg,webp,avif${options.xsecToken ? `&xsec_token=${encodeURIComponent(options.xsecToken)}` : ''}`;
     const res = await callXhsApi(listUrl, 'GET');
 
     if (!res.success || !res.data) {

@@ -868,6 +868,7 @@ async function startBloggerCrawl() {
     const result = await crawlAllNotesForBlogger(
       uid,
       {
+        xsecToken: currentXsecToken.value,
         maxNotes: maxNotesLimit.value,
         fetchComments: autoFetchComments.value,
         onLog: (text) => appendLog(text),

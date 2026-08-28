@@ -191,13 +191,33 @@ export default defineContentScript({
     function extractState() {
       try {
         const state = (window as any).__INITIAL_STATE__;
-        if (state?.note?.noteDetailMap) {
+        if (!state) return;
+
+        // 1. 笔记详情页 state
+        if (state.note?.noteDetailMap) {
           const notesList: any[] = [];
           Object.values(state.note.noteDetailMap).forEach((val: any) => {
             if (val?.note) notesList.push(val.note);
           });
           if (notesList.length > 0) {
-            broadcastData('notes', 'window.__INITIAL_STATE__', { items: notesList });
+            broadcastData('notes', 'window.__INITIAL_STATE__.note', { items: notesList });
+          }
+        }
+
+        // 2. 博主个人主页 state
+        if (state.user?.notesDetailMap || state.user?.userPosted) {
+          const userNotes = state.user.notesDetailMap || state.user.userPosted;
+          const list: any[] = [];
+          if (Array.isArray(userNotes)) {
+            list.push(...userNotes);
+          } else if (typeof userNotes === 'object') {
+            Object.values(userNotes).forEach((v: any) => {
+              if (v?.note) list.push(v.note);
+              else if (v?.id || v?.note_id) list.push(v);
+            });
+          }
+          if (list.length > 0) {
+            broadcastData('notes', 'window.__INITIAL_STATE__.user', { items: list });
           }
         }
       } catch (_) {}
@@ -209,7 +229,8 @@ export default defineContentScript({
       } else {
         window.addEventListener('load', extractState);
       }
-      setTimeout(extractState, 1500);
+      setTimeout(extractState, 1200);
+      setTimeout(extractState, 3000);
     }
   },
 });
