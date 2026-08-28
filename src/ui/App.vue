@@ -696,13 +696,17 @@ function appendLog(text: string) {
 
 function checkCurrentUrlContext() {
   const url = window.location.href;
+
+  // 1. 全局提取 URL 里的 xsec_token (无论是笔记详情还是博主主页)
+  const tokenMatch = url.match(/xsec_token=([^&]+)/);
+  if (tokenMatch) {
+    currentXsecToken.value = decodeURIComponent(tokenMatch[1]);
+  }
+
+  // 2. 笔记详情页识别
   const noteMatch = url.match(/\/explore\/([a-f0-9]+)/i);
   if (noteMatch) {
     currentNoteId.value = noteMatch[1];
-    const tokenMatch = url.match(/xsec_token=([^&]+)/);
-    if (tokenMatch) {
-      currentXsecToken.value = decodeURIComponent(tokenMatch[1]);
-    }
     const noteObj = notesMap.value.get(noteMatch[1]);
     if (noteObj) currentNoteTitle.value = noteObj.title;
   } else {
@@ -710,6 +714,7 @@ function checkCurrentUrlContext() {
     currentNoteTitle.value = '';
   }
 
+  // 3. 博主个人主页识别
   const userMatch = url.match(/\/user\/profile\/([a-f0-9]+)/i);
   if (userMatch) {
     detectedUserId.value = userMatch[1];
@@ -874,6 +879,13 @@ async function startBloggerCrawl() {
   }
 
   let uid = targetUserId.value.trim();
+  let token = currentXsecToken.value;
+
+  // 如果输入框里粘贴的是带 xsec_token 的完整 URL，提取 token
+  if (uid.includes('xsec_token=')) {
+    const tm = uid.match(/xsec_token=([^&]+)/);
+    if (tm) token = decodeURIComponent(tm[1]);
+  }
   if (uid.includes('/user/profile/')) {
     const m = uid.match(/\/user\/profile\/([a-f0-9]+)/i);
     if (m) uid = m[1];
@@ -888,7 +900,7 @@ async function startBloggerCrawl() {
     const result = await crawlAllNotesForBlogger(
       uid,
       {
-        xsecToken: currentXsecToken.value,
+        xsecToken: token,
         maxNotes: maxNotesLimit.value,
         fetchComments: autoFetchComments.value,
         onLog: (text) => appendLog(text),
