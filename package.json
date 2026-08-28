@@ -1,0 +1,36 @@
+{
+  "name": "xt-mm-climber",
+  "version": "0.2.0",
+  "description": "小天媒媒助手 (xt-mm-climber) - 安全合规的小红书全自动数据采集与素材归档工具",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JimmyBeck/xt-mm-climber.git"
+  },
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "file-saver": "^2.0.5",
+    "jszip": "^3.10.1",
+    "lucide-vue-next": "^0.475.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.304",
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^22.13.4",
+    "@wxt-dev/module-vue": "^1.0.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "terser": "^5.51.2",
+    "typescript": "^5.7.3",
+    "wxt": "^0.19.26"
+  }
+}
