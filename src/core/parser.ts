@@ -40,23 +40,25 @@ export function cleanImageUrl(rawUrl: string): string {
 export function parseRawNote(rawItem: any): XhsNote | null {
   try {
     if (!rawItem) return null;
-    const noteCard = rawItem.note_card || rawItem;
-    if (!noteCard || !noteCard.note_id && !noteCard.id) return null;
+    const noteCard = rawItem.note_card || rawItem.note || rawItem;
+    if (!noteCard) return null;
 
-    const id = noteCard.note_id || noteCard.id;
+    const id = noteCard.note_id || noteCard.id || rawItem.note_id || rawItem.id;
+    if (!id) return null;
+
     const xsecToken = noteCard.xsec_token || rawItem.xsec_token || '';
     const title = noteCard.display_title || noteCard.title || '';
     const desc = noteCard.desc || '';
     const type = noteCard.type === 'video' ? 'video' : 'normal';
 
-    const authorRaw = noteCard.user || {};
+    const authorRaw = noteCard.user || rawItem.user || {};
     const author: XhsAuthor = {
       id: authorRaw.user_id || authorRaw.id || '',
       name: authorRaw.nickname || authorRaw.name || '小红书用户',
       avatar: cleanImageUrl(authorRaw.avatar || authorRaw.image || ''),
     };
 
-    const interactRaw = noteCard.interact_info || {};
+    const interactRaw = noteCard.interact_info || rawItem.interact_info || {};
     const interactInfo: XhsInteractInfo = {
       likedCount: Number(interactRaw.liked_count || interactRaw.likedCount || 0),
       collectedCount: Number(interactRaw.collected_count || interactRaw.collectedCount || 0),
@@ -123,13 +125,19 @@ export function parseRawNote(rawItem: any): XhsNote | null {
 }
 
 /**
- * 批量解析 Feed 或 搜索结果返回的笔记列表
+ * 批量解析 Feed、搜索结果或博主发布列表返回的笔记
  */
 export function parseNotesPayload(payload: any): XhsNote[] {
   const notes: XhsNote[] = [];
   if (!payload) return notes;
 
-  const items = payload.items || payload.data?.items || payload.data?.notes || (Array.isArray(payload) ? payload : []);
+  const items =
+    payload.notes ||
+    payload.items ||
+    payload.data?.notes ||
+    payload.data?.items ||
+    (Array.isArray(payload) ? payload : []);
+
   if (Array.isArray(items)) {
     items.forEach((item: any) => {
       const parsed = parseRawNote(item);
@@ -137,8 +145,8 @@ export function parseNotesPayload(payload: any): XhsNote[] {
     });
   }
 
-  if (notes.length === 0 && payload.data?.note_card) {
-    const single = parseRawNote(payload.data.note_card);
+  if (notes.length === 0 && (payload.note_card || payload.data?.note_card)) {
+    const single = parseRawNote(payload.note_card || payload.data?.note_card);
     if (single) notes.push(single);
   }
 
