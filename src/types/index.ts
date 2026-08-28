@@ -70,6 +70,7 @@ export interface NoteCrawlItemReport {
   status: 'full' | 'partial' | 'failed';
   commentCount: number;
   reason: string; // 人话解释
+  errorCode?: number | string;
 }
 
 export interface CrawlTaskSummaryReport {
@@ -83,4 +84,18 @@ export interface CrawlTaskSummaryReport {
   failedCount: number;
   totalCommentsCaptured: number;
   details: NoteCrawlItemReport[];
+}
+
+/**
+ * 小红书标准化底层异常枚举
+ */
+export enum XhsErrorCode {
+  SUCCESS = 0,
+  IP_BLOCK = 300012, // IP 被封禁/网络异常
+  SECURITY_LIMIT = 300011, // 账号触发安全限制/风控拦截
+  NOTE_NOT_FOUND = -510000, // 笔记已被博主删除
+  NOTE_ABNORMAL = -510001, // 笔记状态异常/审核中/仅自己可见
+  CAPTCHA_REQUIRED = 461, // 触发滑块验证码
+  TIMEOUT = 408, // 请求超时熔断
+  RATE_LIMIT = 429, // 频控限流
 }

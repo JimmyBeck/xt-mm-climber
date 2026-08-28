@@ -45,7 +45,7 @@
               <h2 class="text-sm font-bold text-slate-900 leading-tight">小天媒媒助手</h2>
               <p class="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
                 <ShieldCheck class="h-3.5 w-3.5 text-emerald-500" />
-                账号安全第一（拟人化频控 + 存活看门狗）
+                账号安全第一（错误码自愈 + 拟人化频控）
               </p>
             </div>
           </div>
@@ -144,31 +144,30 @@
                 <div class="flex items-center justify-between font-bold text-amber-900">
                   <span class="flex items-center gap-1.5">
                     <ShieldAlert class="h-4 w-4 text-amber-600" />
-                    账号安全与存活监控
+                    底层错误码标准化自愈已就绪
                   </span>
-                  <span class="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">看门狗就绪</span>
+                  <span class="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">300012/461 自愈中</span>
                 </div>
                 <p class="text-[11px] leading-relaxed text-amber-700">
-                  • <b>折叠回复自动穿透</b>：自动识别并循环调用接口展开“展开 X 条回复”，无需人工点击。<br />
-                  • <b>强制冷却防假死监控</b>：每 10 篇休息 25 秒，配备秒级倒计时，倒计时结束自动继续。<br />
-                  • <b>人话版结算报告</b>：任务完成后生成详细诊断，讲清哪些 100% 抓完、哪些因超时跳过。
+                  • <b>单篇全深度采集（新）</b>：一键获取单篇 100% 正文长文、物理时间戳、无水印素材与全部展开评论。<br />
+                  • <b>智能错误码自愈</b>：遇到 404 删除/私密自动跳过，遇到频控自动休眠 60s，绝不死锁卡死。
                 </p>
               </div>
 
-              <!-- 任务 1: 当前笔记全量评论递归提取 -->
+              <!-- 核心场景 2: 指定单篇笔记全深度采集 -->
               <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
                 <div>
                   <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <MessageSquare class="h-4 w-4 text-rose-500" />
-                    当前笔记全量评论递归提取
+                    <Layers class="h-4 w-4 text-rose-500" />
+                    单篇笔记全深度采集 (正文+素材+全量评论)
                   </h3>
                   <p class="text-[11px] text-slate-400 mt-0.5">
-                    自动遍历所有一级评论分页，并递归展开所有被折叠的“展开 X 条回复”
+                    100% 获取全文长文、精确秒级时间戳、无水印原图/视频及全部展开折叠回复
                   </p>
                 </div>
 
                 <div class="mt-3 flex items-center justify-between bg-slate-50 p-2.5 rounded-lg text-xs">
-                  <span class="text-slate-600 font-medium">当前笔记 ID:</span>
+                  <span class="text-slate-600 font-medium">目标笔记 ID:</span>
                   <span class="font-mono text-slate-800 text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200">
                     {{ currentNoteId || '请先在页面上打开任意一篇笔记' }}
                   </span>
@@ -176,23 +175,23 @@
 
                 <button
                   :disabled="isCrawling || !currentNoteId"
-                  @click="startNoteCommentsCrawl"
-                  class="mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg bg-rose-500 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-600 disabled:opacity-50"
+                  @click="startSingleNoteDeepCrawl"
+                  class="mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-50"
                 >
                   <Play class="h-3.5 w-3.5" />
-                  <span>一键提取全部评论（含全部展开子回复）</span>
+                  <span>一键全深度采集此篇笔记</span>
                 </button>
               </div>
 
-              <!-- 任务 2: 指定博主全部笔记与评论全量采集 -->
+              <!-- 核心场景 3: 指定博主全部笔记与评论全量采集 -->
               <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
                 <div>
                   <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                     <UserCheck class="h-4 w-4 text-rose-500" />
-                    博主全量笔记与评论采集
+                    博主全量笔记与评论批量采集
                   </h3>
                   <p class="text-[11px] text-slate-400 mt-0.5">
-                    游标扫描博主全部笔记，逐篇提取正文、素材与展开所有评论
+                    游标扫描博主全部历史笔记，逐篇提取正文、素材与展开所有评论
                   </p>
                 </div>
 
@@ -225,7 +224,7 @@
                   <button
                     :disabled="isCrawling || !targetUserId"
                     @click="startBloggerCrawl"
-                    class="w-full flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-red-600 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                    class="w-full flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
                   >
                     <Play class="h-3.5 w-3.5" />
                     <span>开始全量采集该博主数据</span>
@@ -300,7 +299,7 @@
                   </div>
                   <div class="bg-white p-2.5 rounded-lg border border-amber-100 shadow-xs">
                     <div class="text-base font-bold text-amber-600">{{ latestReport.partialCount }} 篇</div>
-                    <div class="text-[10px] text-slate-500 mt-0.5">部分完成/超时</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">部分完成/自愈</div>
                   </div>
                   <div class="bg-white p-2.5 rounded-lg border border-rose-100 shadow-xs">
                     <div class="text-base font-bold text-rose-600">{{ latestReport.failedCount }} 篇</div>
@@ -315,7 +314,7 @@
 
               <!-- 逐篇人话明细列表 -->
               <div class="space-y-2">
-                <h4 class="text-xs font-bold text-slate-800">各篇笔记抓取明细与诊断说明</h4>
+                <h4 class="text-xs font-bold text-slate-800">各篇笔记抓取明细与错误码自愈诊断</h4>
                 <div
                   v-for="item in latestReport.details"
                   :key="item.id"
@@ -332,7 +331,7 @@
                         item.status === 'partial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
                       ]"
                     >
-                      {{ item.status === 'full' ? '100% 完毕' : item.status === 'partial' ? '部分抓取' : '失败' }}
+                      {{ item.status === 'full' ? '100% 完毕' : item.status === 'partial' ? '部分完成' : '失败' }}
                     </span>
                   </div>
                   <div class="flex items-center justify-between text-[11px] text-slate-500">
@@ -356,7 +355,7 @@
               <Inbox class="h-10 w-10 text-slate-300 mb-2 stroke-[1.5]" />
               <p class="text-xs font-medium">暂无捕获笔记</p>
               <p class="text-[11px] text-slate-400 mt-1 max-w-[240px]">
-                正常浏览小红书，或在「全自动采集」中一键抓取博主全部笔记
+                正常浏览小红书，或在「全自动采集」中一键全深度抓取单篇或博主全部笔记
               </p>
             </div>
 
@@ -501,7 +500,7 @@
           <span class="text-slate-300">|</span>
           <span class="text-emerald-600 font-medium flex items-center gap-1">
             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-            折叠回复展开引擎已装载
+            错误码自愈引擎已就绪
           </span>
         </div>
       </div>
@@ -528,11 +527,12 @@ import {
   ShieldCheck,
   ShieldAlert,
   FileCheck,
+  Layers,
 } from 'lucide-vue-next';
 import type { XhsNote, XhsComment, SniffMessage, CrawlTaskSummaryReport } from '../types';
 import { parseNotesPayload, parseCommentsPayload } from '../core/parser';
 import { exportNotesToExcel, exportCommentsToExcel, downloadNoteMediaAsZip } from '../core/exporter';
-import { crawlAllCommentsForNote, crawlAllNotesForBlogger } from '../core/crawler';
+import { crawlSingleNoteDeep, crawlAllNotesForBlogger } from '../core/crawler';
 
 const isOpen = ref(false);
 const activeTab = ref<'notes' | 'comments' | 'automation' | 'report'>('notes');
@@ -601,8 +601,8 @@ function handleCapturedMessage(event: MessageEvent) {
   }
 }
 
-// 任务 1: 单篇笔记全量评论递归提取
-async function startNoteCommentsCrawl() {
+// 核心场景 2: 单篇笔记全深度采集
+async function startSingleNoteDeepCrawl() {
   checkCurrentUrlContext();
   if (!currentNoteId.value) {
     alert('请先在页面上打开任意一篇小红书笔记');
@@ -611,17 +611,20 @@ async function startNoteCommentsCrawl() {
 
   isCrawling.value = true;
   isStopRequested.value = false;
-  appendLog(`开始对笔记 [${currentNoteId.value.slice(-6)}] 执行全量评论提取...`);
+  appendLog(`🎯 开始对当前笔记 [${currentNoteId.value.slice(-6)}] 执行全深度采集 (正文+素材+全部评论)...`);
 
   try {
-    const { comments: list, report } = await crawlAllCommentsForNote(
+    const { note, comments: list, report } = await crawlSingleNoteDeep(
       currentNoteId.value,
       currentXsecToken.value,
-      (text, count) => {
-        appendLog(text);
-      },
+      (text) => appendLog(text),
       () => isStopRequested.value
     );
+
+    if (note) {
+      notesMap.value.set(note.id, note);
+      notesMap.value = new Map(notesMap.value);
+    }
 
     list.forEach((c) => commentsMap.value.set(c.id, c));
     commentsMap.value = new Map(commentsMap.value);
@@ -630,7 +633,7 @@ async function startNoteCommentsCrawl() {
       taskId: 'TASK_' + Date.now(),
       startTime: new Date().toLocaleTimeString(),
       endTime: new Date().toLocaleTimeString(),
-      durationText: '单篇提取',
+      durationText: '单篇深度提取',
       totalNotesTarget: 1,
       fullCount: report.status === 'full' ? 1 : 0,
       partialCount: report.status === 'partial' ? 1 : 0,
@@ -640,7 +643,7 @@ async function startNoteCommentsCrawl() {
     };
 
     activeTab.value = 'report';
-    appendLog(`✅ 评论区抓取完成！共收集 ${list.length} 条评论（已包含所有展开回复），已生成诊断报告。`);
+    appendLog(`🎉 笔记全深度采集完毕！正文全文已捕获，共收集 ${list.length} 条评论（含所有展开回复）。`);
   } catch (err: any) {
     appendLog(`⚠️ 提取中断: ${err?.message || '异常'}`);
   } finally {
@@ -648,7 +651,7 @@ async function startNoteCommentsCrawl() {
   }
 }
 
-// 任务 2: 博主全量采集
+// 核心场景 3: 博主全量采集
 async function startBloggerCrawl() {
   if (!targetUserId.value) {
     alert('请输入博主 User ID 或主页链接');
